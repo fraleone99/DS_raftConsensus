@@ -12,34 +12,24 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 //
-//
-// TODO documentation
-//
-simple node
-{
-    parameters:
-		int channels=parent.nodes-1;	
-    gates:
-        inout gate[channels];
+
+struct AppendEntry_Args { 
+  		int term;
+		int leaderId;
+		int prevLogIndex;
+		int prevLogTerm;
+		int entries [10];
+		int lederCommit; 
+	};
+	
+struct AppendEntry_Results{
+		int term;
+		bool success;	
+	};
+
+message AppendEntry{
+	
+	AppendEntry_Args args;
+	AppendEntry_Results res;
+
 }
-
-
-//
-// TODO documentation
-//
-network Net
-{
-    parameters:
-        int nodes;
-    types:
-        channel Channel extends ned.DelayChannel {
-            delay = 10ms;
-        }
-    submodules:
-        node[nodes]: node;
-    connections:
-        for i=0..nodes-2 {
-            node[i].gate++ <--> Channel <--> node[j].gate++ for j=i+1..nodes-1, if j!=i;
-        }    
-}
-

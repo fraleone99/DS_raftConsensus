@@ -12,34 +12,23 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 //
-//
-// TODO documentation
-//
-simple node
-{
-    parameters:
-		int channels=parent.nodes-1;	
-    gates:
-        inout gate[channels];
+	struct RequestVote_Args { 
+  		int term;
+		int candidateId;
+		int lastLogIndex;
+		int lastLogTerm;
+	};
+	
+	struct RequestVote_Results{
+		int term;
+		bool voteGranted;	
+	};
+
+message RequestVote{
+    
+    string name = "RequestVote";
+	
+	RequestVote_Args args;
+	RequestVote_Results res;
+	
 }
-
-
-//
-// TODO documentation
-//
-network Net
-{
-    parameters:
-        int nodes;
-    types:
-        channel Channel extends ned.DelayChannel {
-            delay = 10ms;
-        }
-    submodules:
-        node[nodes]: node;
-    connections:
-        for i=0..nodes-2 {
-            node[i].gate++ <--> Channel <--> node[j].gate++ for j=i+1..nodes-1, if j!=i;
-        }    
-}
-
