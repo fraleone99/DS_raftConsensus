@@ -1,0 +1,65 @@
+version 3
+run General-0-20220614-11:53:21-9804
+attr configname General
+attr datetime 20220614-11:53:21
+attr datetimef 20220614-115321
+attr experiment General
+attr inifile omnetpp.ini
+attr iterationvars ""
+attr iterationvarsd ""
+attr iterationvarsf ""
+attr measurement ""
+attr network Net
+attr processid 9804
+attr repetition 0
+attr replication #0
+attr resultdir results
+attr runnumber 0
+attr seedset 0
+config network Net
+
+par Net.node[0].gate$o[0].channel typename "\"Net.Channel\""
+par Net.node[0].gate$o[0].channel disabled false
+attr mutable ""
+par Net.node[0].gate$o[0].channel delay 0.01s
+attr mutable ""
+attr unit s
+par Net.node[1].gate$o[0].channel typename "\"Net.Channel\""
+par Net.node[1].gate$o[0].channel disabled false
+attr mutable ""
+par Net.node[1].gate$o[0].channel delay 0.01s
+attr mutable ""
+attr unit s
+par Net.node[0].gate$o[1].channel typename "\"Net.Channel\""
+par Net.node[0].gate$o[1].channel disabled false
+attr mutable ""
+par Net.node[0].gate$o[1].channel delay 0.01s
+attr mutable ""
+attr unit s
+par Net.node[2].gate$o[0].channel typename "\"Net.Channel\""
+par Net.node[2].gate$o[0].channel disabled false
+attr mutable ""
+par Net.node[2].gate$o[0].channel delay 0.01s
+attr mutable ""
+attr unit s
+par Net.node[1].gate$o[1].channel typename "\"Net.Channel\""
+par Net.node[1].gate$o[1].channel disabled false
+attr mutable ""
+par Net.node[1].gate$o[1].channel delay 0.01s
+attr mutable ""
+attr unit s
+par Net.node[2].gate$o[1].channel typename "\"Net.Channel\""
+par Net.node[2].gate$o[1].channel disabled false
+attr mutable ""
+par Net.node[2].gate$o[1].channel delay 0.01s
+attr mutable ""
+attr unit s
+par Net.node[0] typename "\"node\""
+par Net.node[0] channels 2
+par Net.node[1] typename "\"node\""
+par Net.node[1] channels 2
+par Net.node[2] typename "\"node\""
+par Net.node[2] channels 2
+par Net typename "\"Net\""
+par Net nodes 3
+
