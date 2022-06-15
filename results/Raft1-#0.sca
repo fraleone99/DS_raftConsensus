@@ -1,0 +1,114 @@
+version 3
+run Raft1-0-20220615-11:31:14-1660
+attr configname Raft1
+attr datetime 20220615-11:31:14
+attr datetimef 20220615-113114
+attr experiment Raft1
+attr inifile omnetpp.ini
+attr iterationvars ""
+attr iterationvarsd ""
+attr iterationvarsf ""
+attr measurement ""
+attr network Net
+attr processid 1660
+attr repetition 0
+attr replication #0
+attr resultdir results
+attr runnumber 0
+attr seedset 0
+config Net.nodes 4
+config Net.clients 0
+config Net.node[0].crashTime 1
+config Net.node[1].crashTime 0
+config Net.node[2].crashTime 0
+config Net.node[3].crashTime 0
+config network Net
+
+par Net.node[0].gateNode$o[0].channel typename "\"Net.Channel\""
+par Net.node[0].gateNode$o[0].channel disabled false
+attr mutable ""
+par Net.node[0].gateNode$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[1].gateNode$o[0].channel typename "\"Net.Channel\""
+par Net.node[1].gateNode$o[0].channel disabled false
+attr mutable ""
+par Net.node[1].gateNode$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[0].gateNode$o[1].channel typename "\"Net.Channel\""
+par Net.node[0].gateNode$o[1].channel disabled false
+attr mutable ""
+par Net.node[0].gateNode$o[1].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[2].gateNode$o[0].channel typename "\"Net.Channel\""
+par Net.node[2].gateNode$o[0].channel disabled false
+attr mutable ""
+par Net.node[2].gateNode$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[0].gateNode$o[2].channel typename "\"Net.Channel\""
+par Net.node[0].gateNode$o[2].channel disabled false
+attr mutable ""
+par Net.node[0].gateNode$o[2].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[3].gateNode$o[0].channel typename "\"Net.Channel\""
+par Net.node[3].gateNode$o[0].channel disabled false
+attr mutable ""
+par Net.node[3].gateNode$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[1].gateNode$o[1].channel typename "\"Net.Channel\""
+par Net.node[1].gateNode$o[1].channel disabled false
+attr mutable ""
+par Net.node[1].gateNode$o[1].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[2].gateNode$o[1].channel typename "\"Net.Channel\""
+par Net.node[2].gateNode$o[1].channel disabled false
+attr mutable ""
+par Net.node[2].gateNode$o[1].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[1].gateNode$o[2].channel typename "\"Net.Channel\""
+par Net.node[1].gateNode$o[2].channel disabled false
+attr mutable ""
+par Net.node[1].gateNode$o[2].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[3].gateNode$o[1].channel typename "\"Net.Channel\""
+par Net.node[3].gateNode$o[1].channel disabled false
+attr mutable ""
+par Net.node[3].gateNode$o[1].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[2].gateNode$o[2].channel typename "\"Net.Channel\""
+par Net.node[2].gateNode$o[2].channel disabled false
+attr mutable ""
+par Net.node[2].gateNode$o[2].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[3].gateNode$o[2].channel typename "\"Net.Channel\""
+par Net.node[3].gateNode$o[2].channel disabled false
+attr mutable ""
+par Net.node[3].gateNode$o[2].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[0] typename "\"node\""
+par Net.node[0] channels 3
+par Net.node[0] crashTime 1
+par Net.node[1] typename "\"node\""
+par Net.node[1] channels 3
+par Net.node[1] crashTime 0
+par Net.node[2] typename "\"node\""
+par Net.node[2] channels 3
+par Net.node[2] crashTime 0
+par Net.node[3] typename "\"node\""
+par Net.node[3] channels 3
+par Net.node[3] crashTime 0
+par Net typename "\"Net\""
+par Net nodes 4
+par Net clients 0
+

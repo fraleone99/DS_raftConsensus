@@ -23,6 +23,7 @@ struct AppendEntry_Args {
 	};
 	
 struct AppendEntry_Results{
+    	int id;
 		int term;
 		bool success;	
 	};

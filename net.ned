@@ -18,28 +18,45 @@
 simple node
 {
     parameters:
-		int channels=parent.nodes-1;	
+        int channels = parent.nodes-1;
+        int crashTime;
+        @display("i=device/server");
     gates:
-        inout gate[channels];
+        inout gateNode[channels];
+}
+
+simple client
+{
+    parameters:
+        int channelsClient = parent.nodes;
+        @display("i=device/pc");
+    gates:
+        inout gateClient[channelsClient];
 }
 
 
-//
-// TODO documentation
-//
+
+
+
 network Net
 {
     parameters:
         int nodes;
+        int clients;
     types:
-        channel Channel extends ned.DelayChannel {
-            delay = 10ms;
+        channel Channel extends ned.DelayChannel
+        {
+            delay = 8ms;
         }
     submodules:
         node[nodes]: node;
+        client[clients]: client;
     connections:
-        for i=0..nodes-2 {
-            node[i].gate++ <--> Channel <--> node[j].gate++ for j=i+1..nodes-1, if j!=i;
-        }    
+        for i=0..nodes-2{
+            node[i].gateNode++ <--> Channel <--> node[j].gateNode++ for j=i+1..nodes-1 ,if i != j;
+        }
+        for i=0..clients-2, for j=0..nodes-2 {
+            client[i].gateClient++ <--> Channel <--> node[j].gateNode++;
+        }
 }
 
