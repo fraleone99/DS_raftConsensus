@@ -34,7 +34,7 @@ simple client
         int channelsClient = parent.nodes;
         @display("i=device/pc");
     gates:
-        inout gateClient[channelsClient];
+        inout gateClient[];
 }
 
 

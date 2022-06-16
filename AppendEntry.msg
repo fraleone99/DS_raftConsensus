@@ -13,12 +13,19 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 //
 
+struct logEntry_t{
+    int term;
+    int command;
+    int index;
+};
+
 struct AppendEntry_Args { 
   		int term;
 		int leaderId;
 		int prevLogIndex;
 		int prevLogTerm;
-		int entries [10];
+		logEntry_t entries [10];
+		int entriesSize;
 		int lederCommit; 
 	};
 	

@@ -15,6 +15,8 @@
 #include "AppendEntry_m.h"
 #include "ClientReq_res_m.h"
 #include "ClientRequest_m.h"
+#include <vector>
+#include <algorithm>
 
 
 
@@ -28,11 +30,6 @@ struct peer{
     int matchIndex;
 };
 
-struct logEntry_t{
-    int term;
-    int command;
-    int index;
-};
 
 class node : public cSimpleModule
 {
@@ -45,7 +42,7 @@ class node : public cSimpleModule
     virtual AppendEntry *refuseAppend(AppendEntry* msg);
     virtual AppendEntry *acceptAppend(AppendEntry* msg);
     virtual AppendEntry *generateHeartBeat();
-    //virtual AppendEntry *generateAppendEntry();
+    virtual AppendEntry *generateAppendEntry(int peerId);
 
     virtual ClientReq_res *generateClientReq_res(bool accepted);
 
@@ -68,8 +65,8 @@ class node : public cSimpleModule
     //Persistent state
     int currentTerm = 0; //increases monotonically
     int votedFor = -1;
-    logEntry_t log[50];
-    int logLastFilledPosition = 0;
+    std::vector<logEntry_t> log;
+    //int logLastFilledPosition = 0;
     int voteReceived = 0;
 
     //Volatile state
@@ -82,6 +79,12 @@ class node : public cSimpleModule
 
     //needed to simulate crash through a state of the FSM
     int stateBeforeCrash;
+
+    //variables needed for Append message
+    int entriesSize = 0;
+    int prevLogIndex = 0;
+    int prevLogTerm  = 0;
+    //int peerId = 0;
 
     cFSM fsm;
     enum{
@@ -113,22 +116,21 @@ class node : public cSimpleModule
         entry.command = req->getCommand();
         entry.term = currentTerm;
         entry.index = lastApplied;
-        //log[lastFilledPosition+1] = entry;;
-        //lastFilledPosition++;
+        log.insert(log.end(), entry);;
         printLog();
     }
 
     void printLog(){
         logEntry_t toPrint;
-        for(int i = 0 ; i< lastApplied; i++){
+        for(int i = 0 ; i< log.size(); i++){
             toPrint = log[i];
             (EV <<  "\nposition: "<< i << " command: " << toPrint.command << " term: " << toPrint.term << " index: " <<  toPrint.index << "\n");
         }
     }
 
-    /*void printState(){
+    void printStateMachine(){
         (EV << "state machine: " << stateMachine << " id: " << id);
-    }*/
+    }
 
     void crash(){
         stateBeforeCrash = fsm.getState();
@@ -137,6 +139,10 @@ class node : public cSimpleModule
     int findChannelById(int toFind){
         return toFind < id ? toFind : toFind - 1;
     }
+
+    //void sendHeartBeat(){
+
+    //}
 
 
 };
@@ -177,13 +183,14 @@ void node::initialize()
             peers[i].nextIndex = 0;
             (EV << "\ninitializing node i: " << (i) << " in peersArray of node: " << id <<"\n");
         }
+
     }
 
     logEntry_t first;
     first.command = 0;
     first.index = 0;
     first.term = 0;
-    log[0] = first;
+    log.insert(log.begin(), first);
 
 
 }
@@ -225,11 +232,55 @@ void node::handleMessage(cMessage *msg)
                         FSM_Goto(fsm, FOLLOWER);
 
                     }else if(AppendEntry *v = dynamic_cast<AppendEntry*>(msg)){
-                        if(v->getArgs().term >= currentTerm){
+                        AppendEntry_Args args = v->getArgs();
+                        if(args.term >= currentTerm){
                             printState();
-                            send(acceptAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
-                            votedFor = -1;
-                            leaderId = v->getArgs().leaderId;
+
+                            //check if our log contain an entry at prevLogIndex whose term matches prevLogTerm
+                            if(args.prevLogIndex == 0 || args.prevLogIndex < log.size() &&
+                                    args.prevLogTerm == log[args.prevLogIndex].term){
+                                send(acceptAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
+                                //votedFor = -1;
+                                leaderId = v->getArgs().leaderId;
+
+                                //find a point where there is a mismatch between the existing log
+                                //and the new entries
+
+                                int logInsertIndex = args.prevLogIndex + 1;
+                                int newEntriesIndex = 0;
+
+                                while(1){
+
+                                    if(logInsertIndex >= log.size() || newEntriesIndex >= args.entriesSize)
+                                        break;
+                                    if(log[logInsertIndex].term != args.entries[newEntriesIndex].term)
+                                        break;
+                                    logInsertIndex++;
+                                    newEntriesIndex++;
+                                }
+                                //Now we have found the point of mismatch if exists
+                                std::vector<logEntry_t> entries;
+                                entries.insert(entries.begin(), std::begin(args.entries), std::end(args.entries));
+
+                                if(newEntriesIndex < args.entriesSize){
+                                    auto itPos = log.begin() + logInsertIndex;
+                                    log.insert(itPos, entries.begin() + newEntriesIndex, entries.end());
+                                    (EV << "inserting entries from index: " << logInsertIndex);
+                                    printLog();
+                                }
+
+                                //Set commit index
+                                if(args.lederCommit > commitIndex){
+                                    if(args.lederCommit > log.size()-1)
+                                        commitIndex = log.size() - 1;
+                                    else
+                                        commitIndex = args.lederCommit;
+                                    (EV << "\ncommit index: " << commitIndex);
+                                }
+
+
+                            }
+
                         }
                         else
                             send(refuseAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
@@ -257,8 +308,14 @@ void node::handleMessage(cMessage *msg)
                                   voteReceived++;
                               }
                               if(voteReceived >= nodesNumber/2 + 1){
-                                   FSM_Goto(fsm, LEADER);
-                                   scheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
+                                  for(int i = 0; i < nodesNumber; i++){
+                                      if(i != id){
+                                          nextIndex[i] = log.size();
+                                          matchIndex[i] = -1;
+                                      }
+                                  }
+                                   FSM_Goto(fsm, HEARTBEAT);
+                                   //scheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
                                    cancelEvent(timerMsg);
                               }
                               else
@@ -312,15 +369,44 @@ void node::handleMessage(cMessage *msg)
                         FSM_Goto(fsm, CRASH);
                     }
                 }
-                //handling unsuccessful AppendEntry
+                //handling AppendEntry response
                 else if(AppendEntry *v = dynamic_cast<AppendEntry*>(msg)){
-                    if(v->getArgs().term > currentTerm){
-                        (EV << "\nThere is a new sheriff in town\n");
+                    if(v->getRes().term > currentTerm){
+                        (EV << "\nThere is a new leader\n");
                         FSM_Goto(fsm, FOLLOWER);
                         send(acceptAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
                         newTerm(v->getRes().term);
                     }
-                    else{
+                    else if(v->getRes().term == currentTerm){
+                        if(v->getRes().success){
+                            nextIndex[v->getRes().id] += v->getArgs().entriesSize;
+                            matchIndex[v->getRes().id] = nextIndex[v->getRes().id] - 1;
+
+                            int tempCommitIndex = commitIndex;
+
+                            for(int i = commitIndex + 1; i < log.size(); i++){
+                                if(log[i].term == currentTerm){
+                                    int matchCount = 1;
+                                    for(int peerId = 0; peerId < nodesNumber; peerId++){
+                                        if(peerId != id){
+                                            if(matchIndex[peerId] >= i)
+                                                matchCount++;
+                                        }
+                                    }
+                                    if (matchCount*2 > nodesNumber) {
+                                        commitIndex = i;
+                                    }
+                                }
+                            }
+                            if(commitIndex != tempCommitIndex){
+                                (EV << "new commit Index: " << commitIndex);
+                                //TODO send ack to client
+                            }
+                        }
+                        else{
+                            nextIndex[v->getRes().id]--;
+                            (EV <<  "Append entry not successful updating next id");
+                        }
                         FSM_Goto(fsm, LEADER);
                     }
                 }
@@ -329,26 +415,31 @@ void node::handleMessage(cMessage *msg)
                     ClientReq_res *res = generateClientReq_res(true);
                     handleRequests(req);
                     send(res ,"gateToClients$o", req->getArrivalGate()->getIndex());
-                    FSM_Goto(fsm, APPEND_ENTRY);
+                    FSM_Goto(fsm, HEARTBEAT);
                 }
                 break;
         case FSM_Enter(LEADER):
                 bubble("LEADER");
-                rescheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
+
+                //rescheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
                 printState();
+                printLog();
                 break;
         case FSM_Exit(HEARTBEAT):
-                for(int k=0; k<nodesNumber-1; k++) {
-                    AppendEntry *msg = generateHeartBeat();
-                    send(msg, "gateNode$o", k);
+                for(int peerId = 0; peerId < nodesNumber; peerId++){
+                    if(peerId != id){
+                        AppendEntry *v = generateAppendEntry(peerId);
+                        send(v, "gateNode$o", findChannelById(peerId));
+                    }
                 }
+                rescheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
                 FSM_Goto(fsm, LEADER);
                 break;
         case FSM_Exit(APPEND_ENTRY):
-                for(int k=0; k<nodesNumber-1; k++) {
+                //for(int k=0; k<nodesNumber-1; k++) {
                     //AppendEntry *msg = generateAppendEntry();
-                    send(msg, "gateNode$o", k);
-                }
+                    //send(msg, "gateNode$o", k);
+                //}
                 FSM_Goto(fsm, LEADER);
                 break;
 
@@ -419,25 +510,53 @@ AppendEntry *node::generateHeartBeat()
     return msg;
 }
 
-/*AppendEntry *node::generateAppendEntry(int* entries)
+AppendEntry *node::generateAppendEntry(int peerId)
 {
+
     AppendEntry* msg = new AppendEntry();
+
+
+    int ni =  nextIndex[peerId];
+
+    prevLogIndex = ni - 1;
+
+    prevLogTerm = -1;
+
+    if (prevLogIndex >= 0){
+        prevLogTerm = log[prevLogIndex].term;
+    }
+    logEntry_t  entries[10];
+
+    entriesSize = 0;
+
+    (EV << "ni " << ni);
+    for(int i = ni - 1; i < log.size(); i++){
+        entries[entriesSize].command = log[ni].command;
+        entries[entriesSize].term = log[ni].term;
+        entries[entriesSize].index = log[ni].index;
+        entriesSize++;
+    }
+
+
     AppendEntry_Args args;
+    for(int k = 0; k < entriesSize; k++){
+        args.entries[k] = entries[k];
+    }
 
-    args.term = currentTerm;
+    args.entriesSize = entriesSize;
     args.leaderId = id;
-    args.term = currentTerm;
-    args.leaderId = id;
-    args.prevLogIndex = logLastFilledPosition - 1;
-    args.prevLogTerm = log[logLastFilledPosition - 1].term;
-    for
-    args.entries = entries;
     args.lederCommit = commitIndex;
+    args.prevLogIndex = prevLogIndex;
+    args.prevLogTerm = prevLogTerm;
+    args.term = currentTerm;
 
-    msg->setArgs(args);
+    //msg->setArgs(args);
+
+
+    (EV << "sending AppendEntries to" << peerId << " ni: " << ni);
 
     return msg;
-}*/
+}
 
 
 
