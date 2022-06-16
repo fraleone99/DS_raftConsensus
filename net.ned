@@ -19,15 +19,18 @@ simple node
 {
     parameters:
         int channels = parent.nodes-1;
-        int crashTime;
+        int crashTime = default(0);
+        int wakeUpTime = default(0);
         @display("i=device/server");
     gates:
         inout gateNode[channels];
+        inout gateToClients[];
 }
 
 simple client
 {
     parameters:
+        int nodes = parent.nodes;
         int channelsClient = parent.nodes;
         @display("i=device/pc");
     gates:
@@ -55,8 +58,8 @@ network Net
         for i=0..nodes-2{
             node[i].gateNode++ <--> Channel <--> node[j].gateNode++ for j=i+1..nodes-1 ,if i != j;
         }
-        for i=0..clients-2, for j=0..nodes-2 {
-            client[i].gateClient++ <--> Channel <--> node[j].gateNode++;
+        for i=0..clients-1, for j=0..nodes-1 {
+            client[i].gateClient++ <--> Channel <--> node[j].gateToClients++;
         }
 }
 

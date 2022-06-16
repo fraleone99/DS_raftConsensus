@@ -13,6 +13,8 @@
 #include "raftMessage_m.h"
 #include "RequestVote_m.h"
 #include "AppendEntry_m.h"
+#include "ClientReq_res_m.h"
+#include "ClientRequest_m.h"
 
 
 
@@ -26,10 +28,10 @@ struct peer{
     int matchIndex;
 };
 
-struct log_entry{
+struct logEntry_t{
     int term;
     int command;
-
+    int index;
 };
 
 class node : public cSimpleModule
@@ -43,34 +45,38 @@ class node : public cSimpleModule
     virtual AppendEntry *refuseAppend(AppendEntry* msg);
     virtual AppendEntry *acceptAppend(AppendEntry* msg);
     virtual AppendEntry *generateAppendEntry();
+    virtual ClientReq_res *generateClientReq_res(bool accepted);
+
 
     float timer;
     float heartBeatTimer;
     float crashTimer;
+    float wakeUpTimer;
     cMessage *timerMsg = new cMessage("TimerExpired");
     cMessage *heartBeatMsg = new cMessage("TimerHeartbeat");
-    cMessage *crashMsg = new cMessage("crash");
-
-
+    cMessage *crashMsg = new cMessage("Crash");
+    cMessage *wakeUpMsg = new cMessage("WakeUp");
     int nodesNumber;
     int id;
-    peer* peers;
+    int leaderId;
+        peer* peers;
 
-     //Persistent state
-     int currentTerm = 0; //increases monotonically
-     int votedFor = -1;
-     log_entry log[50];
-     int voteReceived = 0;
+    //Persistent state
+    int currentTerm = 0; //increases monotonically
+    int votedFor = -1;
+    logEntry_t log[50];
+    int voteReceived = 0;
 
-     //Volatile state
-     int commitIndex = 0;
-     int lastApplied = 0;
+    //Volatile state
+    int commitIndex = 0;
+    int lastApplied = 0;
 
-     //Volatile State for Leaders
-     int* nextIndex;
-     int* matchIndex;
+    //Volatile State for Leaders
+    int* nextIndex;
+    int* matchIndex;
 
-     string x;
+    //needed to simulate crash through a state of the FSM
+    int stateBeforeCrash;
 
     cFSM fsm;
     enum{
@@ -96,6 +102,28 @@ class node : public cSimpleModule
         (EV << "node:" << id << " voteReceived: " << voteReceived << " votedFor: " << votedFor << " currentTerm: " << currentTerm);
     }
 
+    void handleRequests(ClientRequest* req){
+        logEntry_t entry;
+        entry.command = req->getCommand();
+        entry.term = currentTerm;
+        entry.index = lastApplied;
+        log[lastApplied] = entry;;
+        lastApplied++;
+        printLog();
+    }
+
+    void printLog(){
+        logEntry_t toPrint;
+        for(int i = 0 ; i< lastApplied; i++){
+            toPrint = log[i];
+            (EV <<  "\nposition: "<< i << " command: " << toPrint.command << " term: " << toPrint.term << " index: " <<  toPrint.index << "\n");
+        }
+    }
+
+    void crash(){
+        stateBeforeCrash = fsm.getState();
+    }
+
 
 };
 
@@ -116,9 +144,14 @@ void node::initialize()
 
     if((int)par("crashTime")!= 0){
         crashTimer = (int) par("crashTime");
-        crashMsg->setContextPointer(&x);
         scheduleAt(0.0 + crashTimer, crashMsg);
         (EV << "crashTimer" << crashTimer);
+    }
+
+    if((int)par("wakeUpTime")!= 0){
+        wakeUpTimer = (int) par("wakeUpTime");
+        scheduleAt(0.0 + wakeUpTimer, wakeUpMsg);
+        (EV << "\nwakeUpTimer" << wakeUpTimer);
     }
 
     peers = new peer[nodesNumber];
@@ -144,13 +177,18 @@ void node::handleMessage(cMessage *msg)
                  FSM_Goto(fsm,FOLLOWER);
                  break;
         case FSM_Exit(FOLLOWER):
-                if(msg -> isSelfMessage()){ // ElectionTimer expires
-                    newTerm(currentTerm + 1);
-                    if(nodesNumber != 1){
-                        FSM_Goto(fsm, CANDIDATE);
+                if(msg -> isSelfMessage()){
+                    if(msg == timerMsg){
+                        newTerm(currentTerm + 1);
+                        if(nodesNumber != 1){
+                            FSM_Goto(fsm, CANDIDATE);
+                        }
+                        else{ //border case in which there is only one state: go directly to leader
+                            FSM_Goto(fsm, LEADER);
+                        }
                     }
-                    else{
-                        FSM_Goto(fsm, LEADER);
+                    else if(msg == crashMsg){
+                        FSM_Goto(fsm, CRASH);
                     }
 
                 }
@@ -171,6 +209,7 @@ void node::handleMessage(cMessage *msg)
                             printState();
                             send(acceptAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
                             votedFor = -1;
+                            leaderId = v->getArgs().leaderId;
                         }
                         else
                             send(refuseAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
@@ -183,7 +222,7 @@ void node::handleMessage(cMessage *msg)
                 break;
         case FSM_Enter(FOLLOWER):
                 bubble("FOLLOWER");
-                scheduleAt(simTime()+timer, timerMsg); //resetTimer
+                rescheduleAt(simTime()+timer, timerMsg); //resetTimer
                 break;
 
 
@@ -240,35 +279,42 @@ void node::handleMessage(cMessage *msg)
                 }
                 break;
         case FSM_Exit(LEADER):
-                FSM_Goto(fsm, LEADER);
                 if(msg -> isSelfMessage()){
                     (EV << msg->getName() << crashMsg->getName() );
                     //Send heartBeat
-                    if(strcmp(msg->getName(),crashMsg->getName()) != 0){
+                    if(msg != crashMsg){
                         FSM_Goto(fsm, HEARTBEAT);
-                        rescheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
+                        //rescheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
                     }
                     //simulating crash
                     else{
+                        crash();
                         FSM_Goto(fsm, CRASH);
                     }
                 }
                 //handling unsuccessful AppendEntry
                 else if(AppendEntry *v = dynamic_cast<AppendEntry*>(msg)){
-                    if(!(v->getRes().success) && v->getRes().term > currentTerm){
+                    if(v->getArgs().term > currentTerm){
+                        (EV << "\nThere is a new sheriff in town\n");
                         FSM_Goto(fsm, FOLLOWER);
+                        send(acceptAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
                         newTerm(v->getRes().term);
                     }
                     else{
                         FSM_Goto(fsm, LEADER);
                     }
                 }
-                else{
+                //handling a Client Request
+                else if(ClientRequest *req = dynamic_cast<ClientRequest*>(msg)){
+                    ClientReq_res *res = generateClientReq_res(true);
+                    handleRequests(req);
+                    send(res ,"gateToClients$o", req->getArrivalGate()->getIndex());
                     FSM_Goto(fsm, LEADER);
                 }
                 break;
         case FSM_Enter(LEADER):
                 bubble("LEADER");
+                rescheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
                 printState();
                 break;
         case FSM_Exit(HEARTBEAT):
@@ -280,20 +326,14 @@ void node::handleMessage(cMessage *msg)
                 break;
 
         case FSM_Exit(CRASH):
-                FSM_Goto(fsm, CRASH);
+                if(msg != wakeUpMsg)
+                    FSM_Goto(fsm, CRASH);
+                else
+                    FSM_Goto(fsm, stateBeforeCrash);
                 break;
         case FSM_Enter(CRASH):
                 bubble("crash");
                 break;
-
-
-
-
-
-
-
-
-
     }
 }
 
@@ -357,6 +397,8 @@ AppendEntry *node::acceptAppend(AppendEntry* msg)
 
     AppendEntry_Results res;
 
+    leaderId = msg->getArgs().leaderId;
+
     res.success= true;
     res.term = currentTerm;
     res.id = id;
@@ -379,6 +421,17 @@ AppendEntry *node::refuseAppend(AppendEntry* msg)
 
     return msg;
 }
+
+ClientReq_res *node::generateClientReq_res(bool accepted){
+    ClientReq_res *res = new ClientReq_res();
+
+    res->setAccepted(accepted);
+    res->setLeaderId(leaderId);
+
+    return res;
+}
+
+
 
 
 
