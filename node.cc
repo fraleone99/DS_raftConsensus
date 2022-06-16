@@ -44,7 +44,9 @@ class node : public cSimpleModule
     virtual RequestVote *refuseVote(RequestVote* msg);
     virtual AppendEntry *refuseAppend(AppendEntry* msg);
     virtual AppendEntry *acceptAppend(AppendEntry* msg);
-    virtual AppendEntry *generateAppendEntry();
+    virtual AppendEntry *generateHeartBeat();
+    //virtual AppendEntry *generateAppendEntry();
+
     virtual ClientReq_res *generateClientReq_res(bool accepted);
 
 
@@ -61,10 +63,13 @@ class node : public cSimpleModule
     int leaderId;
         peer* peers;
 
+    int stateMachine = 0;
+
     //Persistent state
     int currentTerm = 0; //increases monotonically
     int votedFor = -1;
     logEntry_t log[50];
+    int logLastFilledPosition = 0;
     int voteReceived = 0;
 
     //Volatile state
@@ -87,6 +92,7 @@ class node : public cSimpleModule
         LEADER = FSM_Steady(3),
         CRASH = FSM_Steady(4),
         HEARTBEAT = FSM_Transient(1),
+        APPEND_ENTRY = FSM_Transient(2),
     };
 
     void newTerm(int newTerm){
@@ -107,8 +113,8 @@ class node : public cSimpleModule
         entry.command = req->getCommand();
         entry.term = currentTerm;
         entry.index = lastApplied;
-        log[lastApplied] = entry;;
-        lastApplied++;
+        //log[lastFilledPosition+1] = entry;;
+        //lastFilledPosition++;
         printLog();
     }
 
@@ -120,8 +126,16 @@ class node : public cSimpleModule
         }
     }
 
+    /*void printState(){
+        (EV << "state machine: " << stateMachine << " id: " << id);
+    }*/
+
     void crash(){
         stateBeforeCrash = fsm.getState();
+    }
+
+    int findChannelById(int toFind){
+        return toFind < id ? toFind : toFind - 1;
     }
 
 
@@ -165,6 +179,12 @@ void node::initialize()
         }
     }
 
+    logEntry_t first;
+    first.command = 0;
+    first.index = 0;
+    first.term = 0;
+    log[0] = first;
+
 
 }
 
@@ -197,7 +217,7 @@ void node::handleMessage(cMessage *msg)
                         if(v->getArgs().term >= currentTerm && votedFor==-1){
                             newTerm(v->getArgs().term);
                             votedFor = v->getArgs().candidateId;
-                            send(grantVote(v), "gateNode$o", msg->getArrivalGate()->getIndex());
+                            send(grantVote(v), "gateNode$o", findChannelById(votedFor));
 
                         }else{
                             send(refuseVote(v), "gateNode$o", msg->getArrivalGate()->getIndex());
@@ -309,7 +329,7 @@ void node::handleMessage(cMessage *msg)
                     ClientReq_res *res = generateClientReq_res(true);
                     handleRequests(req);
                     send(res ,"gateToClients$o", req->getArrivalGate()->getIndex());
-                    FSM_Goto(fsm, LEADER);
+                    FSM_Goto(fsm, APPEND_ENTRY);
                 }
                 break;
         case FSM_Enter(LEADER):
@@ -319,7 +339,14 @@ void node::handleMessage(cMessage *msg)
                 break;
         case FSM_Exit(HEARTBEAT):
                 for(int k=0; k<nodesNumber-1; k++) {
-                    AppendEntry *msg = generateAppendEntry();
+                    AppendEntry *msg = generateHeartBeat();
+                    send(msg, "gateNode$o", k);
+                }
+                FSM_Goto(fsm, LEADER);
+                break;
+        case FSM_Exit(APPEND_ENTRY):
+                for(int k=0; k<nodesNumber-1; k++) {
+                    //AppendEntry *msg = generateAppendEntry();
                     send(msg, "gateNode$o", k);
                 }
                 FSM_Goto(fsm, LEADER);
@@ -378,19 +405,41 @@ RequestVote *node::refuseVote(RequestVote* msg)
     return msg;
 }
 
-AppendEntry *node::generateAppendEntry()
+AppendEntry *node::generateHeartBeat()
 {
     AppendEntry* msg = new AppendEntry();
     AppendEntry_Args args;
 
     args.term = currentTerm;
     args.leaderId = id;
-
+    //args.entries = NULL;
 
     msg->setArgs(args);
 
     return msg;
 }
+
+/*AppendEntry *node::generateAppendEntry(int* entries)
+{
+    AppendEntry* msg = new AppendEntry();
+    AppendEntry_Args args;
+
+    args.term = currentTerm;
+    args.leaderId = id;
+    args.term = currentTerm;
+    args.leaderId = id;
+    args.prevLogIndex = logLastFilledPosition - 1;
+    args.prevLogTerm = log[logLastFilledPosition - 1].term;
+    for
+    args.entries = entries;
+    args.lederCommit = commitIndex;
+
+    msg->setArgs(args);
+
+    return msg;
+}*/
+
+
 
 AppendEntry *node::acceptAppend(AppendEntry* msg)
 {
@@ -430,6 +479,8 @@ ClientReq_res *node::generateClientReq_res(bool accepted){
 
     return res;
 }
+
+
 
 
 

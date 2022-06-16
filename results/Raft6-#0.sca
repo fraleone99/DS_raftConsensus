@@ -1,8 +1,8 @@
 version 3
-run Raft6-0-20220616-10:43:45-20100
+run Raft6-0-20220616-12:26:52-15420
 attr configname Raft6
-attr datetime 20220616-10:43:45
-attr datetimef 20220616-104345
+attr datetime 20220616-12:26:52
+attr datetimef 20220616-122652
 attr experiment Raft6
 attr inifile omnetpp.ini
 attr iterationvars ""
@@ -10,7 +10,7 @@ attr iterationvarsd ""
 attr iterationvarsf ""
 attr measurement ""
 attr network Net
-attr processid 20100
+attr processid 15420
 attr repetition 0
 attr replication #0
 attr resultdir results
