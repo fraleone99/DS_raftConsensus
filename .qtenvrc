@@ -3,7 +3,7 @@ last-configname=Raft6
 last-runnumber=0
 
 [RunModeProfiles]
-run-playback-speed=13.489628825916533
+run-playback-speed=100
 run-min-playback-speed=0.01
 run-max-playback-speed=100
 run-min-animation-speed=nan

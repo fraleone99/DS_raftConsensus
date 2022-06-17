@@ -23,7 +23,7 @@ simple node
         int wakeUpTime = default(0);
         @display("i=device/server");
     gates:
-        inout gateNode[channels];
+        inout gateNode[];
         inout gateToClients[];
 }
 
