@@ -19,8 +19,8 @@ simple node
 {
     parameters:
         int channels = parent.nodes-1;
-        int crashTime = default(0);
-        int wakeUpTime = default(0);
+        double crashTime = default(0);
+        double wakeUpTime = default(0);
         @display("i=device/server");
     gates:
         inout gateNode[];

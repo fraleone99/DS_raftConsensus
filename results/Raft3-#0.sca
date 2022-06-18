@@ -1,0 +1,147 @@
+version 3
+run Raft3-0-20220618-13:46:19-24048
+attr configname Raft3
+attr datetime 20220618-13:46:19
+attr datetimef 20220618-134619
+attr experiment Raft3
+attr inifile omnetpp.ini
+attr iterationvars ""
+attr iterationvarsd ""
+attr iterationvarsf ""
+attr measurement ""
+attr network Net
+attr processid 24048
+attr repetition 0
+attr replication #0
+attr resultdir results
+attr runnumber 0
+attr seedset 0
+config Net.nodes 2
+config Net.clients 1
+config Net.node[0].crashTime 0
+config network Net
+
+par Net.node[0].gateNode$o[0].channel typename "\"Net.Channel\""
+par Net.node[0].gateNode$o[0].channel disabled false
+attr mutable ""
+par Net.node[0].gateNode$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[1].gateNode$o[0].channel typename "\"Net.Channel\""
+par Net.node[1].gateNode$o[0].channel disabled false
+attr mutable ""
+par Net.node[1].gateNode$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.client[0].gateClient$o[0].channel typename "\"Net.Channel\""
+par Net.client[0].gateClient$o[0].channel disabled false
+attr mutable ""
+par Net.client[0].gateClient$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[0].gateToClients$o[0].channel typename "\"Net.Channel\""
+par Net.node[0].gateToClients$o[0].channel disabled false
+attr mutable ""
+par Net.node[0].gateToClients$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.client[0].gateClient$o[1].channel typename "\"Net.Channel\""
+par Net.client[0].gateClient$o[1].channel disabled false
+attr mutable ""
+par Net.client[0].gateClient$o[1].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[1].gateToClients$o[0].channel typename "\"Net.Channel\""
+par Net.node[1].gateToClients$o[0].channel disabled false
+attr mutable ""
+par Net.node[1].gateToClients$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[0] typename "\"node\""
+par Net.node[0] channels 1
+par Net.node[0] crashTime 0
+par Net.node[0] wakeUpTime 0
+par Net.node[1] typename "\"node\""
+par Net.node[1] channels 1
+par Net.node[1] crashTime 0
+par Net.node[1] wakeUpTime 0
+par Net.client[0] typename "\"client\""
+par Net.client[0] nodes 2
+par Net.client[0] channelsClient 2
+par Net typename "\"Net\""
+par Net nodes 2
+par Net clients 1
+
+run Raft3-0-20220618-13:40:00-21552
+attr configname Raft3
+attr datetime 20220618-13:40:00
+attr datetimef 20220618-134000
+attr experiment Raft3
+attr inifile omnetpp.ini
+attr iterationvars ""
+attr iterationvarsd ""
+attr iterationvarsf ""
+attr measurement ""
+attr network Net
+attr processid 21552
+attr repetition 0
+attr replication #0
+attr resultdir results
+attr runnumber 0
+attr seedset 0
+config Net.nodes 2
+config Net.clients 1
+config Net.node[0].crashTime 0
+config network Net
+
+par Net.node[0].gateNode$o[0].channel typename "\"Net.Channel\""
+par Net.node[0].gateNode$o[0].channel disabled false
+attr mutable ""
+par Net.node[0].gateNode$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[1].gateNode$o[0].channel typename "\"Net.Channel\""
+par Net.node[1].gateNode$o[0].channel disabled false
+attr mutable ""
+par Net.node[1].gateNode$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.client[0].gateClient$o[0].channel typename "\"Net.Channel\""
+par Net.client[0].gateClient$o[0].channel disabled false
+attr mutable ""
+par Net.client[0].gateClient$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[0].gateToClients$o[0].channel typename "\"Net.Channel\""
+par Net.node[0].gateToClients$o[0].channel disabled false
+attr mutable ""
+par Net.node[0].gateToClients$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.client[0].gateClient$o[1].channel typename "\"Net.Channel\""
+par Net.client[0].gateClient$o[1].channel disabled false
+attr mutable ""
+par Net.client[0].gateClient$o[1].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[1].gateToClients$o[0].channel typename "\"Net.Channel\""
+par Net.node[1].gateToClients$o[0].channel disabled false
+attr mutable ""
+par Net.node[1].gateToClients$o[0].channel delay 0.008s
+attr mutable ""
+attr unit s
+par Net.node[0] typename "\"node\""
+par Net.node[0] channels 1
+par Net.node[0] crashTime 0
+par Net.node[0] wakeUpTime 0
+par Net.node[1] typename "\"node\""
+par Net.node[1] channels 1
+par Net.node[1] crashTime 0
+par Net.node[1] wakeUpTime 0
+par Net.client[0] typename "\"client\""
+par Net.client[0] nodes 2
+par Net.client[0] channelsClient 2
+par Net typename "\"Net\""
+par Net nodes 2
+par Net clients 1
+

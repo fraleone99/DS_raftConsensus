@@ -112,7 +112,8 @@ class node : public cSimpleModule
         logEntry_t entry;
         entry.command = req->getCommand();
         entry.term = currentTerm;
-        entry.index = log.size() + 1;
+        entry.index = log.size();
+        entry.client_id= req->getId();
         clientChannel_indexLog.insert({entry.index, req->getArrivalGate()->getIndex()});
         log.insert(log.end(), entry);;
         printLog();
@@ -145,15 +146,21 @@ class node : public cSimpleModule
         msg->setAccepted(true);
         msg->setLeaderId(id);
 
+        (EV << "\nCommitting from lastApplied: " << lastApplied );
+
         //fill the entries vector with the entries that are ready for commit
         if(commitIndex > lastApplied){
             auto itPos = entries.begin();
             entries.insert(itPos, log.begin() + lastApplied + 1, log.begin() + commitIndex + 1);
             int j = lastApplied + 1;
             for(int i = 0; i< commitIndex - lastApplied;  i++){
-                int channel = clientChannel_indexLog.at(j+1);
-                send(msg, "gateToClients$o", channel);
+                //int channel = clientChannel_indexLog.at(j);
+                ClientReq_res* msg = new ClientReq_res();
+                msg->setAccepted(true);
+                msg->setLeaderId(id);
+
                 (EV << "\nclient channel: " << clientChannel_indexLog[j] << " j: " << j);
+                send(msg, "gateToClients$o", log[j].client_id);
                 j++;
             }
             lastApplied = commitIndex;
@@ -182,14 +189,14 @@ void node::initialize()
     lastApplied = -1;
     scheduleAt(0.0, timerMsg);
 
-    if((int)par("crashTime")!= 0){
-        crashTimer = (int) par("crashTime");
+    if((double)par("crashTime")!= 0){
+        crashTimer = (double) par("crashTime");
         scheduleAt(0.0 + crashTimer, crashMsg);
         (EV << "crashTimer" << crashTimer);
     }
 
-    if((int)par("wakeUpTime")!= 0){
-        wakeUpTimer = (int) par("wakeUpTime");
+    if((double)par("wakeUpTime")!= 0){
+        wakeUpTimer = (double) par("wakeUpTime");
         scheduleAt(0.0 + wakeUpTimer, wakeUpMsg);
         (EV << "\nwakeUpTimer" << wakeUpTimer);
     }
@@ -216,8 +223,13 @@ void node::handleMessage(cMessage *msg)
                     }
                     else if(msg == crashMsg){
                         FSM_Goto(fsm, CRASH);
+                        stateBeforeCrash = FOLLOWER;
                     }
 
+                }
+                else if(ClientRequest *req = dynamic_cast<ClientRequest*>(msg)){
+                    ClientReq_res *res = generateClientReq_res(false);
+                    send(res, "gateToClients$o", msg->getArrivalGate()->getIndex());
                 }
                 else{
                     //Another node has initiated an election
@@ -237,6 +249,7 @@ void node::handleMessage(cMessage *msg)
                         lastLogTerm = -1;
                     }
                     if(RequestVote *v = dynamic_cast<RequestVote*>(msg)){
+                        (EV << "\n voted for:" << votedFor << " v->getArgs().lastLogTerm :" << v->getArgs().lastLogTerm << " v->getArgs().lastLogTerm: " << v->getArgs().lastLogTerm <<  "lastLogTerm: " << lastLogTerm << " v->getArgs().lastLogIndex: " << v->getArgs().lastLogIndex << "lastLogIndex: " << lastLogIndex);
                         if((v->getArgs().term >= currentTerm) && (votedFor==-1) &&
                                 (v->getArgs().lastLogTerm > lastLogTerm ||
                                         (v->getArgs().lastLogTerm == lastLogTerm && v->getArgs().lastLogIndex >= lastLogIndex))){
@@ -261,7 +274,7 @@ void node::handleMessage(cMessage *msg)
                             if(args.prevLogIndex == -1 ||
                                     (args.prevLogIndex < log.size()) && args.prevLogTerm == log[args.prevLogIndex].term){
                                 printState();
-
+                                votedFor = -1;
                                 send(acceptAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
                                 //votedFor = -1;
                                 leaderId = v->getArgs().leaderId;
@@ -301,6 +314,7 @@ void node::handleMessage(cMessage *msg)
                                     else
                                         commitIndex = args.lederCommit;
                                     (EV << "\ncommit index: " << commitIndex);
+                                    lastApplied = commitIndex;
                                 }
 
 
@@ -347,11 +361,13 @@ void node::handleMessage(cMessage *msg)
                                    FSM_Goto(fsm, CANDIDATE);
                           }
                           else{
-                              if(v->getRes().term <= currentTerm)
+                              if(v->getArgs().term <= currentTerm)
                                   send(refuseVote(v), "gateNode$o", msg->getArrivalGate()->getIndex());
 
                               else{
                                   newTerm(v->getArgs().term);
+                                  votedFor = v->getArgs().candidateId;
+                                  send(grantVote(v), "gateNode$o", msg->getArrivalGate()->getIndex());
                                   FSM_Goto(fsm, FOLLOWER);
                           }
                  }
@@ -394,9 +410,9 @@ void node::handleMessage(cMessage *msg)
                         FSM_Goto(fsm, CRASH);
                     }
                 }
-                //handling AppendEntry response
+                //handling AppendEntry response or other leader
                 else if(AppendEntry *v = dynamic_cast<AppendEntry*>(msg)){
-                    if(v->getRes().term > currentTerm){
+                    if(v->getArgs().term > currentTerm){
                         (EV << "\nThere is a new leader\n");
                         FSM_Goto(fsm, FOLLOWER);
                         send(acceptAppend(v), "gateNode$o", msg->getArrivalGate()->getIndex());
@@ -435,6 +451,10 @@ void node::handleMessage(cMessage *msg)
                         }
                         FSM_Goto(fsm, LEADER);
                     }
+                    else if(v->getRes().term > currentTerm){
+                        FSM_Goto(fsm, FOLLOWER);
+                    }
+
                 }
                 //handling a Client Request
                 else if(ClientRequest *req = dynamic_cast<ClientRequest*>(msg)){
@@ -501,8 +521,9 @@ RequestVote *node::generateRequestVote()
         lastLogTerm = -1;
     }
     args.lastLogIndex = lastLogIndex;
-    args.lastLogIndex = lastLogTerm;
+    args.lastLogTerm = lastLogTerm;
 
+    (EV << "\nlastIndex: " << lastLogIndex << " last term: "  << lastLogTerm);
     msg->setArgs(args);
 
     return msg;
@@ -567,9 +588,9 @@ AppendEntry *node::generateAppendEntry(int peerId)
 
     (EV << "\nni " << ni);
     for(int i = ni; i < log.size(); i++){
-        entries[entriesSize].command = log[ni].command;
-        entries[entriesSize].term = log[ni].term;
-        entries[entriesSize].index = log[ni].index;
+        entries[entriesSize].command = log[ni + entriesSize].command;
+        entries[entriesSize].term = log[ni + entriesSize].term;
+        entries[entriesSize].index = log[ni + entriesSize].index;
         entriesSize++;
     }
 
@@ -590,7 +611,10 @@ AppendEntry *node::generateAppendEntry(int peerId)
     msg->setArgs(args);
 
 
-    (EV << "\nsending AppendEntries to" << peerId << " ni: " << ni);
+    (EV << "\nsending AppendEntries to " << peerId << " ni: " << ni);
+    for(int i = 0; i < entriesSize; i++){
+        (EV << "\nentry " << i << ": " << args.entries[i].command);
+    }
 
     return msg;
 }

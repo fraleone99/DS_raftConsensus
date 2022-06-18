@@ -3,6 +3,10 @@ struct logEntry_t{
     int term;
     int command;
     int index;
+    
+    //needed to answer to client in case of leader crash with uncommitted entries
+    //and to save the last executed entries for every client and not executing twice the same commands
+    int client_id;
 };
 
 struct AppendEntry_Args { 

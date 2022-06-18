@@ -17,12 +17,16 @@ class client : public cSimpleModule
 
     int leaderId;
     int n_nodes;
-    float timer;
+    float initTimer;
+    float resendTimer;
     int toSend;
     int* commands;
     int n_commands;
 
+    int id;
+
     cMessage *timerMsg = new cMessage("TimerExpired");
+
 
 
     cFSM fsm;
@@ -39,7 +43,11 @@ Define_Module(client);
 
 void client::initialize()
 {
-    timer = uniform(0.3,0.35);
+    id = getIndex();
+
+    initTimer = uniform(0.5,0.6);
+    resendTimer = 0.5;
+
     toSend = 0;
     commands = new int[100];
     n_commands = 100;
@@ -51,7 +59,7 @@ void client::initialize()
     }
 
     //timer = uniform(1,2);
-    scheduleAt(timer, timerMsg);
+    scheduleAt(initTimer, timerMsg);
 
 }
 
@@ -64,16 +72,23 @@ void client::handleMessage(cMessage *msg)
         case FSM_Exit(SEND_REQUESTS):{
                 ClientRequest* request = generateClientRequest();
                 if(leaderId != -1){
-                    send(msg, "gateClient$o", leaderId);
+                    send(request, "gateClient$o", leaderId);
                 }
                 else{
                     send(request, "gateClient$o", 0);
                 }
+                rescheduleAt(simTime() + initTimer, timerMsg);
                 FSM_Goto(fsm, WAITING_ACK);
                 break;
         }
         case FSM_Exit(WAITING_ACK):
-                if(ClientReq_res *r = dynamic_cast<ClientReq_res*>(msg)){
+                rescheduleAt(simTime() + initTimer, timerMsg);
+                //resendTimer expired
+                if(msg->isSelfMessage()){
+                    leaderId = uniform(0 , n_nodes);
+                }
+                else if(ClientReq_res *r = dynamic_cast<ClientReq_res*>(msg)){
+                    //ack received
                     if(r->getAccepted()){
                         toSend++;
                     }
@@ -103,6 +118,7 @@ ClientRequest *client::generateClientRequest()
 {
     ClientRequest* msg = new ClientRequest();
     msg->setCommand(commands[toSend]);
+    msg->setId(id);
     return msg;
 }
 
