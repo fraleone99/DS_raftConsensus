@@ -119,6 +119,7 @@ ClientRequest *client::generateClientRequest()
     ClientRequest* msg = new ClientRequest();
     msg->setCommand(commands[toSend]);
     msg->setId(id);
+    msg->setSn(toSend);
     return msg;
 }
 

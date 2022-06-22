@@ -60,6 +60,8 @@ class node : public cSimpleModule
     int id;
     int leaderId;
 
+    int state = 0;
+
 
     //Persistent state
     int currentTerm = 0; //increases monotonically
@@ -80,7 +82,9 @@ class node : public cSimpleModule
     int stateBeforeCrash;
 
     //map needed to send ack to client once entry is committed
-    map<int, int> clientChannel_indexLog;
+    //map<int, int> clientChannel_indexLog;
+
+    map<int, int> clientId_lastCommandApplied;
 
 
     cFSM fsm;
@@ -92,7 +96,6 @@ class node : public cSimpleModule
         LEADER = FSM_Steady(3),
         CRASH = FSM_Steady(4),
         HEARTBEAT = FSM_Transient(1),
-        APPEND_ENTRY = FSM_Transient(2),
     };
 
     void newTerm(int newTerm){
@@ -105,7 +108,8 @@ class node : public cSimpleModule
     }
 
     void printState(){
-        (EV << "\nnode:" << id << " voteReceived: " << voteReceived << " votedFor: " << votedFor << " currentTerm: " << currentTerm << "logSize:" << log.size() << " commit index: " << commitIndex);
+        (EV << "\nnode:" << id << " voteReceived: " << voteReceived << " votedFor: " << votedFor << " currentTerm: " <<
+                currentTerm << "logSize:" << log.size() << " commit index: " << commitIndex << " state: " << state);
     }
 
     void handleRequests(ClientRequest* req){
@@ -114,7 +118,8 @@ class node : public cSimpleModule
         entry.term = currentTerm;
         entry.index = log.size();
         entry.client_id= req->getId();
-        clientChannel_indexLog.insert({entry.index, req->getArrivalGate()->getIndex()});
+        entry.command_sn = req->getSn();
+        //clientChannel_indexLog.insert({entry.index, req->getArrivalGate()->getIndex()});
         log.insert(log.end(), entry);;
         printLog();
         (EV << "EntryIndex: " << entry.index << "Gate: " << req->getArrivalGate()->getIndex());
@@ -124,7 +129,7 @@ class node : public cSimpleModule
         logEntry_t toPrint;
         for(int i = 0 ; i< log.size(); i++){
             toPrint = log[i];
-            (EV <<  "\nposition: "<< i << " command: " << toPrint.command << " term: " << toPrint.term << " index: " <<  toPrint.index << "\n");
+            (EV <<  "\nposition: "<< i << " command: " << toPrint.command << " term: " << toPrint.term << " index: " <<  toPrint.index << " clientId: " << toPrint.client_id << "\n");
         }
     }
 
@@ -159,7 +164,9 @@ class node : public cSimpleModule
                 msg->setAccepted(true);
                 msg->setLeaderId(id);
 
-                (EV << "\nclient channel: " << clientChannel_indexLog[j] << " j: " << j);
+                applyCommand(log[j]);
+
+                (EV << "\nclient channel: " << " " << " j: " << j);
                 send(msg, "gateToClients$o", log[j].client_id);
                 j++;
             }
@@ -167,6 +174,24 @@ class node : public cSimpleModule
         }
 
         (EV << "\nCommitted entries until index: " << lastApplied);
+    }
+
+    void applyCommand(logEntry_t entry){
+
+        (EV << "clientId_lastCommandApplied[entry.client_id]: " << clientId_lastCommandApplied[entry.client_id] <<
+                "entry.command_sn: " << entry.command_sn);
+
+        //After leader crash with uncommitted entries may happen that there is a duplicate in the log, to avoid the
+        //double execution of the same command we save the serial number of the last executed command for each client
+        if(clientId_lastCommandApplied[entry.client_id] != entry.command_sn){
+            state += entry.command;
+            clientId_lastCommandApplied[entry.client_id] = entry.command_sn;
+            (EV << "\nAppling command: " << entry.command);
+        }
+        else{
+            (EV << "\nNot applying because is a duplicate " << entry.command);
+        }
+
     }
 
 
@@ -199,6 +224,10 @@ void node::initialize()
         wakeUpTimer = (double) par("wakeUpTime");
         scheduleAt(0.0 + wakeUpTimer, wakeUpMsg);
         (EV << "\nwakeUpTimer" << wakeUpTimer);
+    }
+
+    for(int i = 0; i < 100; i++){
+        clientId_lastCommandApplied[i] = -1;
     }
 }
 
@@ -314,6 +343,16 @@ void node::handleMessage(cMessage *msg)
                                     else
                                         commitIndex = args.lederCommit;
                                     (EV << "\ncommit index: " << commitIndex);
+
+
+                                    if(commitIndex > lastApplied){
+                                        int j = lastApplied + 1;
+                                        for(int i = 0; i< commitIndex - lastApplied;  i++){
+                                            applyCommand(log[j]);
+                                            j++;
+                                        }
+                                    }
+
                                     lastApplied = commitIndex;
                                 }
 
@@ -458,10 +497,7 @@ void node::handleMessage(cMessage *msg)
                 }
                 //handling a Client Request
                 else if(ClientRequest *req = dynamic_cast<ClientRequest*>(msg)){
-                    ClientReq_res *res = generateClientReq_res(true);
                     handleRequests(req);
-
-                    //send(res ,"gateToClients$o", req->getArrivalGate()->getIndex());
                     FSM_Goto(fsm, HEARTBEAT);
                 }
                 break;
@@ -481,14 +517,6 @@ void node::handleMessage(cMessage *msg)
                 rescheduleAt(simTime() + heartBeatTimer, heartBeatMsg);
                 FSM_Goto(fsm, LEADER);
                 break;
-        case FSM_Exit(APPEND_ENTRY):
-                //for(int k=0; k<nodesNumber-1; k++) {
-                    //AppendEntry *msg = generateAppendEntry();
-                    //send(msg, "gateNode$o", k);
-                //}
-                FSM_Goto(fsm, LEADER);
-                break;
-
         case FSM_Exit(CRASH):
                 if(msg != wakeUpMsg)
                     FSM_Goto(fsm, CRASH);
@@ -591,6 +619,7 @@ AppendEntry *node::generateAppendEntry(int peerId)
         entries[entriesSize].command = log[ni + entriesSize].command;
         entries[entriesSize].term = log[ni + entriesSize].term;
         entries[entriesSize].index = log[ni + entriesSize].index;
+        entries[entriesSize].command_sn = log[ni + entriesSize].command_sn;
         entriesSize++;
     }
 

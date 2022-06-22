@@ -1,8 +1,8 @@
 version 3
-run LogReplicationWithLeaderCrash-0-20220618-14:21:19-23108
+run LogReplicationWithLeaderCrash-0-20220620-21:07:20-23392
 attr configname LogReplicationWithLeaderCrash
-attr datetime 20220618-14:21:19
-attr datetimef 20220618-142119
+attr datetime 20220620-21:07:20
+attr datetimef 20220620-210720
 attr experiment LogReplicationWithLeaderCrash
 attr inifile omnetpp.ini
 attr iterationvars ""
@@ -10,15 +10,15 @@ attr iterationvarsd ""
 attr iterationvarsf ""
 attr measurement ""
 attr network Net
-attr processid 23108
+attr processid 23392
 attr repetition 0
 attr replication #0
 attr resultdir results
 attr runnumber 0
 attr seedset 0
 config Net.nodes 5
-config Net.clients 2
-config Net.node[0].crashTime 0.8
+config Net.clients 1
+config Net.node[0].crashTime 0.7
 config network Net
 
 par Net.node[0].gateNode$o[0].channel typename "\"Net.Channel\""
@@ -201,69 +201,9 @@ attr mutable ""
 par Net.node[4].gateToClients$o[0].channel delay 0.008s
 attr mutable ""
 attr unit s
-par Net.client[1].gateClient$o[0].channel typename "\"Net.Channel\""
-par Net.client[1].gateClient$o[0].channel disabled false
-attr mutable ""
-par Net.client[1].gateClient$o[0].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.node[0].gateToClients$o[1].channel typename "\"Net.Channel\""
-par Net.node[0].gateToClients$o[1].channel disabled false
-attr mutable ""
-par Net.node[0].gateToClients$o[1].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.client[1].gateClient$o[1].channel typename "\"Net.Channel\""
-par Net.client[1].gateClient$o[1].channel disabled false
-attr mutable ""
-par Net.client[1].gateClient$o[1].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.node[1].gateToClients$o[1].channel typename "\"Net.Channel\""
-par Net.node[1].gateToClients$o[1].channel disabled false
-attr mutable ""
-par Net.node[1].gateToClients$o[1].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.client[1].gateClient$o[2].channel typename "\"Net.Channel\""
-par Net.client[1].gateClient$o[2].channel disabled false
-attr mutable ""
-par Net.client[1].gateClient$o[2].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.node[2].gateToClients$o[1].channel typename "\"Net.Channel\""
-par Net.node[2].gateToClients$o[1].channel disabled false
-attr mutable ""
-par Net.node[2].gateToClients$o[1].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.client[1].gateClient$o[3].channel typename "\"Net.Channel\""
-par Net.client[1].gateClient$o[3].channel disabled false
-attr mutable ""
-par Net.client[1].gateClient$o[3].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.node[3].gateToClients$o[1].channel typename "\"Net.Channel\""
-par Net.node[3].gateToClients$o[1].channel disabled false
-attr mutable ""
-par Net.node[3].gateToClients$o[1].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.client[1].gateClient$o[4].channel typename "\"Net.Channel\""
-par Net.client[1].gateClient$o[4].channel disabled false
-attr mutable ""
-par Net.client[1].gateClient$o[4].channel delay 0.008s
-attr mutable ""
-attr unit s
-par Net.node[4].gateToClients$o[1].channel typename "\"Net.Channel\""
-par Net.node[4].gateToClients$o[1].channel disabled false
-attr mutable ""
-par Net.node[4].gateToClients$o[1].channel delay 0.008s
-attr mutable ""
-attr unit s
 par Net.node[0] typename "\"node\""
 par Net.node[0] channels 4
-par Net.node[0] crashTime 0.8
+par Net.node[0] crashTime 0.7
 par Net.node[0] wakeUpTime 0
 par Net.node[1] typename "\"node\""
 par Net.node[1] channels 4
@@ -284,10 +224,7 @@ par Net.node[4] wakeUpTime 0
 par Net.client[0] typename "\"client\""
 par Net.client[0] nodes 5
 par Net.client[0] channelsClient 5
-par Net.client[1] typename "\"client\""
-par Net.client[1] nodes 5
-par Net.client[1] channelsClient 5
 par Net typename "\"Net\""
 par Net nodes 5
-par Net clients 2
+par Net clients 1
 
